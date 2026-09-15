@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import '../models/business_models.dart';
@@ -9,12 +10,22 @@ class DatabaseService {
 
   Future<void> init() async {
     final path = p.join(await getDatabasesPath(), 'ritalicous_food_supply.db');
-    db = await openDatabase(path, version: 1, onCreate: (db, _) async {
-      await db.execute('CREATE TABLE sales(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,item TEXT,unit_price REAL,quantity REAL,product_unit_cost REAL)');
-      await db.execute('CREATE TABLE expenses(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,category TEXT,description TEXT,amount REAL,payment_method TEXT)');
-      await db.execute('CREATE TABLE inventory(id INTEGER PRIMARY KEY AUTOINCREMENT,product TEXT,unit_pack TEXT,unit_cost REAL,opening_qty REAL,closing_qty REAL)');
-      await _seed(db);
-    });
+    db = await openDatabase(
+      path,
+      version: 2,
+      onCreate: (db, _) async {
+        await db.execute('CREATE TABLE sales(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,item TEXT,unit_price REAL,quantity REAL,product_unit_cost REAL)');
+        await db.execute('CREATE TABLE expenses(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,category TEXT,description TEXT,amount REAL,payment_method TEXT)');
+        await db.execute('CREATE TABLE inventory(id INTEGER PRIMARY KEY AUTOINCREMENT,product TEXT,unit_pack TEXT,unit_cost REAL,opening_qty REAL,closing_qty REAL)');
+        await db.execute('CREATE TABLE archives(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,created_at TEXT,data TEXT)');
+        await _seed(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('CREATE TABLE IF NOT EXISTS archives(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,created_at TEXT,data TEXT)');
+        }
+      },
+    );
   }
 
   Future<void> _seed(Database d) async {
@@ -47,10 +58,50 @@ class DatabaseService {
   Future<List<Sale>> sales() async => (await db.query('sales', orderBy:'date DESC,id DESC')).map(Sale.fromMap).toList();
   Future<List<Expense>> expenses() async => (await db.query('expenses', orderBy:'date DESC,id DESC')).map(Expense.fromMap).toList();
   Future<List<Inventory>> inventory() async => (await db.query('inventory', orderBy:'id ASC')).map(Inventory.fromMap).toList();
+
   Future<int> addSale(Sale x) => db.insert('sales', x.toMap()..remove('id'));
   Future<int> addExpense(Expense x) => db.insert('expenses', x.toMap()..remove('id'));
   Future<int> addInventory(Inventory x) => db.insert('inventory', x.toMap()..remove('id'));
+
+  // --- Edit existing entries ---
+  Future<int> updateSale(Sale x) => db.update('sales', x.toMap()..remove('id'), where:'id=?', whereArgs:[x.id]);
+  Future<int> updateExpense(Expense x) => db.update('expenses', x.toMap()..remove('id'), where:'id=?', whereArgs:[x.id]);
+  Future<int> updateInventory(Inventory x) => db.update('inventory', x.toMap()..remove('id'), where:'id=?', whereArgs:[x.id]);
+
   Future<int> deleteSale(int id) => db.delete('sales', where:'id=?', whereArgs:[id]);
   Future<int> deleteExpense(int id) => db.delete('expenses', where:'id=?', whereArgs:[id]);
   Future<int> deleteInventory(int id) => db.delete('inventory', where:'id=?', whereArgs:[id]);
+
+  // --- Clearing a log (used to "start fresh") ---
+  Future<int> clearSales() => db.delete('sales');
+  Future<int> clearExpenses() => db.delete('expenses');
+  Future<int> clearInventory() => db.delete('inventory');
+  Future<void> clearAll() async {
+    await clearSales();
+    await clearExpenses();
+    await clearInventory();
+  }
+
+  // --- Archive / saved-records system ---
+  // Saves a full snapshot of the current sales+expenses+inventory before any
+  // clearing happens, so nothing is ever truly lost: it becomes a retrievable
+  // record (previewable, exportable to PDF) from the Records page.
+  Future<void> archiveCurrentState(String title) async {
+    final s = await sales();
+    final e = await expenses();
+    final i = await inventory();
+    final payload = {
+      'sales': s.map((x) => x.toMap()).toList(),
+      'expenses': e.map((x) => x.toMap()).toList(),
+      'inventory': i.map((x) => x.toMap()).toList(),
+    };
+    await db.insert('archives', {
+      'title': title,
+      'created_at': DateTime.now().toIso8601String(),
+      'data': jsonEncode(payload),
+    });
+  }
+
+  Future<List<ArchiveRecord>> archives() async => (await db.query('archives', orderBy:'id DESC')).map(ArchiveRecord.fromMap).toList();
+  Future<int> deleteArchiveRecord(int id) => db.delete('archives', where:'id=?', whereArgs:[id]);
 }
