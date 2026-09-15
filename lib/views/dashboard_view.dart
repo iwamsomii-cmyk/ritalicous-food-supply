@@ -33,6 +33,16 @@ class DashboardView extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         children: [
           Image.asset('assets/ritalicous_logo.png', height: 90, fit: BoxFit.contain),
+          const SizedBox(height: 4),
+          // Subtle, semi-transparent acknowledgement so the app's own look
+          // stays front and center — this just sits quietly under the logo.
+          const Align(
+            alignment: Alignment.center,
+            child: Text(
+              'Powered By e-LAPS',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0x99205080)),
+            ),
+          ),
           const SizedBox(height: 14),
           // Metric cards laid out horizontally (scrollable strip) instead of
           // stacked one under the other.
@@ -61,7 +71,7 @@ class DashboardView extends StatelessWidget {
           ])),
           const SizedBox(height: 18),
           const Text(
-            'TREND & PERCENTAGE ANALYSIS (UCHANTUANIKAJI KWA ASILIAMIA %)',
+            'TREND & PERCENTAGE ANALYSIS',
             style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF205080)),
           ),
           const SizedBox(height: 10),
@@ -153,21 +163,59 @@ class DashboardView extends StatelessWidget {
           const SizedBox(height: 16),
           _chartCard(
             'Expense Category',
-            PieChart(
-              PieChartData(
-                sectionsSpace: 3,
-                centerSpaceRadius: 34,
-                sections: d.expensesByCategory.entries.map((e) {
-                  return PieChartSectionData(
-                    value: e.value,
-                    title: e.key,
-                    radius: 100,
-                    titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                  );
-                }).toList(),
-              ),
-            ),
-            height: 360,
+            Builder(builder: (context) {
+              final entries = d.expensesByCategory.entries.toList();
+              final total = entries.fold<double>(0, (s, e) => s + e.value);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 3,
+                        centerSpaceRadius: 34,
+                        // Slices only carry a short "%" figure now — never the
+                        // full name — so a dominant slice never squeezes a
+                        // smaller one's text into unreadable space. Full
+                        // names live in the legend below, matched by color.
+                        sections: entries.asMap().entries.map((e) {
+                          final pct = total > 0 ? (e.value.value / total * 100) : 0;
+                          return PieChartSectionData(
+                            value: e.value.value,
+                            title: '${pct.toStringAsFixed(0)}%',
+                            color: _barColors[e.key % _barColors.length],
+                            radius: 100,
+                            titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Legend: color swatch + full category name, wrapping onto
+                  // new lines so long expense names never overlap each other.
+                  Wrap(
+                    spacing: 14,
+                    runSpacing: 6,
+                    children: entries.asMap().entries.map((e) {
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(color: _barColors[e.key % _barColors.length], shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(e.value.key, style: const TextStyle(fontSize: 11)),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ],
+              );
+            }),
+            height: 400,
           ),
           const SizedBox(height: 18),
           _section(
