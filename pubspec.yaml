@@ -29,3 +29,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/ritalicous_logo.png
+
+dependency_overrides:
+  objective_c: 9.3.0
