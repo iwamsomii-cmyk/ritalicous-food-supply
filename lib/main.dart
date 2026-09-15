@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/database_service.dart';
-import 'views/app_shell.dart';
+import 'views/app_lock_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +23,7 @@ class RitalicousApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF4F2FA),
         inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
       ),
-      home: const AppShell(),
+      home: const AppLockGate(),
     );
   }
 }
