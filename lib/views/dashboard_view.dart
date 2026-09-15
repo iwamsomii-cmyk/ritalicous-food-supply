@@ -21,14 +21,23 @@ class DashboardView extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         children: [
           Image.asset('assets/ritalicous_logo.png', height: 90, fit: BoxFit.contain),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            _metric('TOTAL REVENUE', d.revenue),
-            _metric('OPENING STOCK', d.openingStock),
-            _metric('CLOSING STOCK', d.closingStock),
-            _metric('TOTAL EXPENSES', d.expenses),
-            _metric('1. NET PROFIT', d.netProfit),
-            _metric('2. TEMPORARY NET PROFIT', d.temporaryNetProfit),
-          ]),
+          const SizedBox(height: 14),
+          // Metric cards laid out horizontally (scrollable strip) instead of
+          // stacked one under the other.
+          SizedBox(
+            height: 112,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _metric('TOTAL REVENUE', d.revenue),
+                _metric('OPENING STOCK', d.openingStock),
+                _metric('CLOSING STOCK', d.closingStock),
+                _metric('TOTAL EXPENSES', d.expenses),
+                _metric('1. NET PROFIT', d.netProfit),
+                _metric('2. TEMPORARY NET PROFIT', d.temporaryNetProfit, isLast: true),
+              ],
+            ),
+          ),
           const SizedBox(height: 18),
           _section('Financial Metric', Column(children: [
             _row('Total Revenue (Mapato)', d.revenue),
@@ -43,11 +52,68 @@ class DashboardView extends StatelessWidget {
             'TREND & PERCENTAGE ANALYSIS (UCHANTUANIKAJI KWA ASILIAMIA %)',
             style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF205080)),
           ),
-          const SizedBox(height: 8),
-          _charts(d),
+          const SizedBox(height: 10),
+          // Each chart now gets its own full-width row so labels and slices
+          // have room to breathe, instead of squeezing bar + pie side by side.
+          _chartCard(
+            'Financial Metric',
+            BarChart(
+              BarChartData(
+                barGroups: d.financialMetrics.entries.toList().asMap().entries.map((e) {
+                  return BarChartGroupData(x: e.key, barRods: [
+                    BarChartRodData(toY: e.value.value, width: 26, color: const Color(0xFF205080), borderRadius: BorderRadius.circular(4)),
+                  ]);
+                }).toList(),
+                gridData: const FlGridData(show: true, drawVerticalLine: false),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 50)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 54,
+                      getTitlesWidget: (v, m) => Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: SizedBox(
+                          width: 62,
+                          child: Text(
+                            v.toInt() < d.financialMetrics.length ? d.financialMetrics.keys.elementAt(v.toInt()) : '',
+                            style: const TextStyle(fontSize: 9),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            height: 360,
+          ),
+          const SizedBox(height: 16),
+          _chartCard(
+            'Expense Category',
+            PieChart(
+              PieChartData(
+                sectionsSpace: 3,
+                centerSpaceRadius: 34,
+                sections: d.expensesByCategory.entries.map((e) {
+                  return PieChartSectionData(
+                    value: e.value,
+                    title: e.key,
+                    radius: 100,
+                    titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                  );
+                }).toList(),
+              ),
+            ),
+            height: 360,
+          ),
           const SizedBox(height: 18),
           _section(
-            'AI Comment Analysis',
+            'Comment Analysis',
             Container(
               padding: const EdgeInsets.all(12),
               width: double.infinity,
@@ -59,16 +125,18 @@ class DashboardView extends StatelessWidget {
     );
   }
 
-  Widget _metric(String title, double value) => Container(
-        width: 170,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: const Color(0xFFD8E5F4), borderRadius: BorderRadius.circular(8)),
+  Widget _metric(String title, double value, {bool isLast = false}) => Container(
+        width: 195,
+        margin: EdgeInsets.only(right: isLast ? 0 : 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: const Color(0xFFD8E5F4), borderRadius: BorderRadius.circular(10)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(money(value), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF174A7E))),
+            const SizedBox(height: 10),
+            Text(money(value), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF174A7E))),
           ],
         ),
       );
@@ -97,57 +165,18 @@ class DashboardView extends StatelessWidget {
         ]),
       );
 
-  Widget _charts(DashboardData d) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: _chartCard(
-              'Financial Metric',
-              BarChart(
-                BarChartData(
-                  barGroups: d.financialMetrics.entries.toList().asMap().entries.map((e) {
-                    return BarChartGroupData(x: e.key, barRods: [
-                      BarChartRodData(toY: e.value.value, width: 16, color: const Color(0xFF205080)),
-                    ]);
-                  }).toList(),
-                  titlesData: FlTitlesData(
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (v, m) => Text(
-                          v.toInt() < d.financialMetrics.length ? d.financialMetrics.keys.elementAt(v.toInt()) : '',
-                          style: const TextStyle(fontSize: 7),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _chartCard(
-              'Expense Category',
-              PieChart(
-                PieChartData(
-                  sections: d.expensesByCategory.entries.map((e) {
-                    return PieChartSectionData(value: e.value, title: e.key, radius: 70, titleStyle: const TextStyle(fontSize: 9));
-                  }).toList(),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-
-  Widget _chartCard(String title, Widget chart) => Container(
-        height: 300,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+  Widget _chartCard(String title, Widget chart, {double height = 300}) => Container(
+        width: double.infinity,
+        height: height,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 2))],
+        ),
         child: Column(children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
+          Align(alignment: Alignment.centerLeft, child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+          const SizedBox(height: 14),
           Expanded(child: chart),
         ]),
       );
