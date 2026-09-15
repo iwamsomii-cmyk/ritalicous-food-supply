@@ -11,6 +11,18 @@ class DashboardView extends StatelessWidget {
   final List<Inventory> inventory;
   const DashboardView({super.key, required this.data, required this.sales, required this.expenses, required this.inventory});
 
+  // Distinct color per bar so each number-chip on the axis and each legend
+  // dot clearly ties back to the right bar, even when several bars are close
+  // in height.
+  static const List<Color> _barColors = [
+    Color(0xFF205080),
+    Color(0xFF2E9E7A),
+    Color(0xFFE0A62B),
+    Color(0xFFB0453B),
+    Color(0xFF6C5DAC),
+    Color(0xFF3AA6C2),
+  ];
+
   @override
   Widget build(BuildContext context) {
     if (data == null) return const Center(child: CircularProgressIndicator());
@@ -57,40 +69,86 @@ class DashboardView extends StatelessWidget {
           // have room to breathe, instead of squeezing bar + pie side by side.
           _chartCard(
             'Financial Metric',
-            BarChart(
-              BarChartData(
-                barGroups: d.financialMetrics.entries.toList().asMap().entries.map((e) {
-                  return BarChartGroupData(x: e.key, barRods: [
-                    BarChartRodData(toY: e.value.value, width: 26, color: const Color(0xFF205080), borderRadius: BorderRadius.circular(4)),
-                  ]);
-                }).toList(),
-                gridData: const FlGridData(show: true, drawVerticalLine: false),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 50)),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 54,
-                      getTitlesWidget: (v, m) => Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: SizedBox(
-                          width: 62,
-                          child: Text(
-                            v.toInt() < d.financialMetrics.length ? d.financialMetrics.keys.elementAt(v.toInt()) : '',
-                            style: const TextStyle(fontSize: 9),
-                            textAlign: TextAlign.center,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: BarChart(
+                    BarChartData(
+                      barGroups: d.financialMetrics.entries.toList().asMap().entries.map((e) {
+                        return BarChartGroupData(x: e.key, barRods: [
+                          BarChartRodData(
+                            toY: e.value.value,
+                            width: 26,
+                            color: _barColors[e.key % _barColors.length],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ]);
+                      }).toList(),
+                      gridData: const FlGridData(show: true, drawVerticalLine: false),
+                      borderData: FlBorderData(show: false),
+                      titlesData: FlTitlesData(
+                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 50)),
+                        bottomTitles: AxisTitles(
+                          // Each bar only gets a small numbered "chip" here so
+                          // labels never touch or wrap into each other; the
+                          // full name for each number is shown in the legend
+                          // below the chart instead.
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            getTitlesWidget: (v, m) => Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: v.toInt() < d.financialMetrics.length
+                                      ? _barColors[v.toInt() % _barColors.length]
+                                      : Colors.transparent,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  v.toInt() < d.financialMetrics.length ? '${v.toInt() + 1}' : '',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                // Legend: number + color swatch + full metric name, wrapping
+                // cleanly onto new lines instead of squeezing under the bars.
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 6,
+                  children: d.financialMetrics.keys.toList().asMap().entries.map((e) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 16,
+                          height: 16,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(color: _barColors[e.key % _barColors.length], shape: BoxShape.circle),
+                          child: Text('${e.key + 1}', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white)),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(e.value, style: const TextStyle(fontSize: 11)),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ],
             ),
-            height: 360,
+            height: 400,
           ),
           const SizedBox(height: 16),
           _chartCard(
