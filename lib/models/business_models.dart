@@ -36,3 +36,17 @@ class Inventory {
   Map<String, Object?> toMap() => {'id': id, 'product': product, 'unit_pack': unitPack, 'unit_cost': unitCost, 'opening_qty': openingQty, 'closing_qty': closingQty};
   factory Inventory.fromMap(Map<String, Object?> m) => Inventory(id: m['id'] as int?, product: m['product'] as String, unitPack: m['unit_pack'] as String, unitCost: (m['unit_cost'] as num).toDouble(), openingQty: (m['opening_qty'] as num).toDouble(), closingQty: (m['closing_qty'] as num).toDouble());
 }
+
+/// A saved snapshot of the whole business state (sales + expenses + inventory)
+/// captured at a point in time, e.g. before a log is cleared or before the
+/// user starts a fresh record. Keeps historical calculations accessible
+/// (previewable and exportable to PDF) even after the working logs are reset.
+class ArchiveRecord {
+  final int? id;
+  final String title;
+  final String createdAt;
+  final String data; // JSON-encoded {sales:[], expenses:[], inventory:[]}
+  const ArchiveRecord({this.id, required this.title, required this.createdAt, required this.data});
+  Map<String, Object?> toMap() => {'id': id, 'title': title, 'created_at': createdAt, 'data': data};
+  factory ArchiveRecord.fromMap(Map<String, Object?> m) => ArchiveRecord(id: m['id'] as int?, title: m['title'] as String, createdAt: m['created_at'] as String, data: m['data'] as String);
+}
