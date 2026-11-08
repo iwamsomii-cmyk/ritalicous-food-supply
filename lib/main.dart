@@ -1,9 +1,37 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:window_manager/window_manager.dart';
 import 'services/database_service.dart';
 import 'views/app_lock_gate.dart';
 
-Future<void> main() async {
+Future<void> _toggleFullScreen() async {
+  final full = await windowManager.isFullScreen();
+  await windowManager.setFullScreen(!full);
+}
+
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isWindows) {
+    await windowManager.ensureInitialized();
+    const options = WindowOptions(
+      title: 'RITALICIOUS FOOD SUPPLY',
+      minimumSize: Size(900, 600),
+      center: true,
+    );
+    // The desktop shortcut created by the installer starts the app with
+    // --fullscreen. Without it the app simply opens maximized.
+    final startFullScreen = args.contains('--fullscreen');
+    await windowManager.waitUntilReadyToShow(options, () async {
+      await windowManager.show();
+      if (startFullScreen) {
+        await windowManager.setFullScreen(true);
+      } else {
+        await windowManager.maximize();
+      }
+      await windowManager.focus();
+    });
+  }
   await DatabaseService.instance.init();
   runApp(const RitalicousApp());
 }
@@ -23,6 +51,16 @@ class RitalicousApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF4F2FA),
         inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
       ),
+      // F11 toggles full screen on Windows.
+      builder: (context, child) {
+        if (!Platform.isWindows || child == null) return child ?? const SizedBox.shrink();
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.f11): () => _toggleFullScreen(),
+          },
+          child: Focus(autofocus: true, child: child),
+        );
+      },
       home: const AppLockGate(),
     );
   }
