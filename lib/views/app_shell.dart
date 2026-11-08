@@ -57,7 +57,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   @override Widget build(BuildContext context){
-    final pages=[DashboardView(data:data,sales:sales,expenses:expenses,inventory:inventory),SalesView(items:sales,onChanged:refresh),ExpensesView(items:expenses,onChanged:refresh),InventoryView(items:inventory,onChanged:refresh)];
+    final pages=[DashboardView(data:data,sales:sales,expenses:expenses,inventory:inventory),SalesView(items:sales,inventory:inventory,onChanged:refresh),ExpensesView(items:expenses,onChanged:refresh),InventoryView(items:inventory,sales:sales,onChanged:refresh)];
     return Scaffold(
       appBar: AppBar(
         backgroundColor:const Color(0xFF205080),
