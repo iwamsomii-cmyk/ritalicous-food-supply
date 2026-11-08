@@ -1,4 +1,3 @@
-
 name: Build Android APK and Windows Setup
 
 on:
@@ -33,7 +32,14 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-        run: flutter build apk --release --build-number=${{ github.run_number }} --dart-define=BUILD_NUMBER=${{ github.run_number }} --dart-define=SUPABASE_URL="$SUPABASE_URL" --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+        run: |
+          for i in 1 2 3; do
+            echo "Build attempt $i of 3"
+            if flutter build apk --release --build-number=${{ github.run_number }} --dart-define=BUILD_NUMBER=${{ github.run_number }} --dart-define=SUPABASE_URL="$SUPABASE_URL" --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"; then exit 0; fi
+            echo "Build failed (possibly a network error). Retrying in 20s..."
+            sleep 20
+          done
+          exit 1
 
       - name: Locate APK
         run: |
