@@ -1,14 +1,28 @@
+/// One price entry per product. The quantity sold is NOT typed here: it is
+/// calculated from the Inventory Log (opening - closing) by [StockCalc].
 class Sale {
   final int? id;
   final String date;
   final String item;
+  /// Selling price for ONE [saleUnit] ('unit' or 'pack').
   final double unitPrice;
+  /// 'unit' or 'pack': what [unitPrice] and the stock counts are measured in.
+  final String saleUnit;
+  /// Only used by records saved before the automatic calculation existed
+  /// (and for products that are not in the Inventory Log). New rows store 0.
   final double quantity;
   final double productUnitCost;
-  const Sale({this.id, required this.date, required this.item, required this.unitPrice, required this.quantity, required this.productUnitCost});
-  double get revenue => unitPrice * quantity;
-  Map<String, Object?> toMap() => {'id': id, 'date': date, 'item': item, 'unit_price': unitPrice, 'quantity': quantity, 'product_unit_cost': productUnitCost};
-  factory Sale.fromMap(Map<String, Object?> m) => Sale(id: m['id'] as int?, date: m['date'] as String, item: m['item'] as String, unitPrice: (m['unit_price'] as num).toDouble(), quantity: (m['quantity'] as num).toDouble(), productUnitCost: (m['product_unit_cost'] as num).toDouble());
+  const Sale({this.id, required this.date, required this.item, required this.unitPrice, this.saleUnit = 'unit', this.quantity = 0, this.productUnitCost = 0});
+  Map<String, Object?> toMap() => {'id': id, 'date': date, 'item': item, 'unit_price': unitPrice, 'sale_unit': saleUnit, 'quantity': quantity, 'product_unit_cost': productUnitCost};
+  factory Sale.fromMap(Map<String, Object?> m) => Sale(
+        id: m['id'] as int?,
+        date: (m['date'] as String?) ?? '',
+        item: (m['item'] as String?) ?? '',
+        unitPrice: (m['unit_price'] as num?)?.toDouble() ?? 0,
+        saleUnit: ((m['sale_unit'] as String?) ?? 'unit') == 'pack' ? 'pack' : 'unit',
+        quantity: (m['quantity'] as num?)?.toDouble() ?? 0,
+        productUnitCost: (m['product_unit_cost'] as num?)?.toDouble() ?? 0,
+      );
 }
 
 class Expense {
@@ -23,18 +37,21 @@ class Expense {
   factory Expense.fromMap(Map<String, Object?> m) => Expense(id: m['id'] as int?, date: m['date'] as String, category: m['category'] as String, description: m['description'] as String, amount: (m['amount'] as num).toDouble(), paymentMethod: m['payment_method'] as String);
 }
 
+/// Stock count of one product: only the name, opening stock and closing stock.
+/// Everything else (sold quantity, value) is calculated by [StockCalc].
 class Inventory {
   final int? id;
   final String product;
-  final String unitPack;
-  final double unitCost;
   final double openingQty;
   final double closingQty;
-  const Inventory({this.id, required this.product, required this.unitPack, required this.unitCost, required this.openingQty, required this.closingQty});
-  double get openingValue => unitCost * openingQty;
-  double get closingValue => unitCost * closingQty;
-  Map<String, Object?> toMap() => {'id': id, 'product': product, 'unit_pack': unitPack, 'unit_cost': unitCost, 'opening_qty': openingQty, 'closing_qty': closingQty};
-  factory Inventory.fromMap(Map<String, Object?> m) => Inventory(id: m['id'] as int?, product: m['product'] as String, unitPack: m['unit_pack'] as String, unitCost: (m['unit_cost'] as num).toDouble(), openingQty: (m['opening_qty'] as num).toDouble(), closingQty: (m['closing_qty'] as num).toDouble());
+  const Inventory({this.id, required this.product, required this.openingQty, required this.closingQty});
+  Map<String, Object?> toMap() => {'id': id, 'product': product, 'opening_qty': openingQty, 'closing_qty': closingQty};
+  factory Inventory.fromMap(Map<String, Object?> m) => Inventory(
+        id: m['id'] as int?,
+        product: (m['product'] as String?) ?? '',
+        openingQty: (m['opening_qty'] as num?)?.toDouble() ?? 0,
+        closingQty: (m['closing_qty'] as num?)?.toDouble() ?? 0,
+      );
 }
 
 /// A saved snapshot of the whole business state (sales + expenses + inventory)
