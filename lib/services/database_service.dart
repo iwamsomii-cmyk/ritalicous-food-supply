@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import '../models/business_models.dart';
@@ -8,24 +11,37 @@ class DatabaseService {
   static final instance = DatabaseService._();
   late Database db;
 
+  Future<void> _onCreate(Database db, int version) async {
+    await db.execute('CREATE TABLE sales(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,item TEXT,unit_price REAL,quantity REAL,product_unit_cost REAL)');
+    await db.execute('CREATE TABLE expenses(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,category TEXT,description TEXT,amount REAL,payment_method TEXT)');
+    await db.execute('CREATE TABLE inventory(id INTEGER PRIMARY KEY AUTOINCREMENT,product TEXT,unit_pack TEXT,unit_cost REAL,opening_qty REAL,closing_qty REAL)');
+    await db.execute('CREATE TABLE archives(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,created_at TEXT,data TEXT)');
+    await _seed(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('CREATE TABLE IF NOT EXISTS archives(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,created_at TEXT,data TEXT)');
+    }
+  }
+
   Future<void> init() async {
-    final path = p.join(await getDatabasesPath(), 'ritalicous_food_supply.db');
-    db = await openDatabase(
-      path,
-      version: 2,
-      onCreate: (db, _) async {
-        await db.execute('CREATE TABLE sales(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,item TEXT,unit_price REAL,quantity REAL,product_unit_cost REAL)');
-        await db.execute('CREATE TABLE expenses(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,category TEXT,description TEXT,amount REAL,payment_method TEXT)');
-        await db.execute('CREATE TABLE inventory(id INTEGER PRIMARY KEY AUTOINCREMENT,product TEXT,unit_pack TEXT,unit_cost REAL,opening_qty REAL,closing_qty REAL)');
-        await db.execute('CREATE TABLE archives(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,created_at TEXT,data TEXT)');
-        await _seed(db);
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('CREATE TABLE IF NOT EXISTS archives(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,created_at TEXT,data TEXT)');
-        }
-      },
-    );
+    final isDesktop = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    if (isDesktop) {
+      // Windows/desktop: SQLite via FFI, database kept in the user's AppData
+      // folder (writable, survives re-install/uninstall of the program).
+      sqfliteFfiInit();
+      final dir = await getApplicationSupportDirectory();
+      await Directory(dir.path).create(recursive: true);
+      final path = p.join(dir.path, 'ritalicous_food_supply.db');
+      db = await databaseFactoryFfi.openDatabase(
+        path,
+        options: OpenDatabaseOptions(version: 2, onCreate: _onCreate, onUpgrade: _onUpgrade),
+      );
+    } else {
+      final path = p.join(await getDatabasesPath(), 'ritalicous_food_supply.db');
+      db = await openDatabase(path, version: 2, onCreate: _onCreate, onUpgrade: _onUpgrade);
+    }
   }
 
   Future<void> _seed(Database d) async {
