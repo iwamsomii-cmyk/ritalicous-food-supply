@@ -34,6 +34,3 @@ flutter:
   assets:
     - assets/ritalicous_logo.png
     - assets/elaps_logo.png
-
-dependency_overrides:
-  objective_c: 9.3.0
