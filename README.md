@@ -7,6 +7,15 @@ This is the first production-oriented Flutter foundation for the Ritalicous Food
 - Expenses Log
 - Inventory Log
 
+## How stock and sales are calculated (v2 logic)
+
+- **Inventory Log**: the user types only *product name*, *opening stock* and *closing stock*. (Leaving closing empty = nothing counted yet = nothing sold.)
+- **Sales Log**: the user types only *product name*, *price* and whether the price is per **unit** or per **pack**.
+- The app matches the two logs by product name (capital letters and extra spaces are ignored) and works out: **sold = opening - closing**, **value = sold x price**. Results are shown on every card in both logs.
+- Opening / closing stock *value* on the dashboard uses the selling price from the Sales Log (the Inventory Log no longer has a cost price).
+- Every revenue and profit view shows the product name: dashboard table "Mapato na Faida kwa Kila Bidhaa", pie "Revenue kwa Bidhaa", the PDF table and saved records. "Mgao wa faida" is Net Profit split by each product's revenue share (expenses are not recorded per product).
+- Old records: products that have no inventory count keep the quantity they were saved with. Database version is now 4 (adds `sales.sale_unit`); existing data upgrades automatically.
+
 ## Offline design
 
 - SQLite stores all business data locally.
