@@ -24,9 +24,9 @@ class DatabaseService {
   /// Tables that are synchronised between linked devices.
   static const syncTables = ['sales', 'expenses', 'inventory', 'archives'];
   static const _syncColumns = <String, List<String>>{
-    'sales': ['date', 'item', 'unit_price', 'quantity', 'product_unit_cost'],
+    'sales': ['date', 'item', 'unit_price', 'sale_unit', 'quantity', 'product_unit_cost'],
     'expenses': ['date', 'category', 'description', 'amount', 'payment_method'],
-    'inventory': ['product', 'unit_pack', 'unit_cost', 'opening_qty', 'closing_qty'],
+    'inventory': ['product', 'opening_qty', 'closing_qty'],
     'archives': ['title', 'created_at', 'data'],
   };
 
@@ -42,7 +42,7 @@ class DatabaseService {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    await db.execute('CREATE TABLE sales(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,item TEXT,unit_price REAL,quantity REAL,product_unit_cost REAL,sync_id TEXT,updated_at TEXT,dirty INTEGER NOT NULL DEFAULT 0)');
+    await db.execute('CREATE TABLE sales(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,item TEXT,unit_price REAL,quantity REAL,product_unit_cost REAL,sale_unit TEXT DEFAULT \'unit\',sync_id TEXT,updated_at TEXT,dirty INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE expenses(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT,category TEXT,description TEXT,amount REAL,payment_method TEXT,sync_id TEXT,updated_at TEXT,dirty INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE inventory(id INTEGER PRIMARY KEY AUTOINCREMENT,product TEXT,unit_pack TEXT,unit_cost REAL,opening_qty REAL,closing_qty REAL,sync_id TEXT,updated_at TEXT,dirty INTEGER NOT NULL DEFAULT 0)');
     await db.execute('CREATE TABLE archives(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,created_at TEXT,data TEXT,sync_id TEXT,updated_at TEXT,dirty INTEGER NOT NULL DEFAULT 0)');
@@ -56,6 +56,11 @@ class DatabaseService {
     }
     if (oldVersion < 3) {
       await _upgradeToSync(db);
+    }
+    if (oldVersion < 4) {
+      // Sales now say whether the price is per 'unit' or per 'pack'.
+      final cols = (await db.rawQuery('PRAGMA table_info(sales)')).map((r) => '${r['name']}').toSet();
+      if (!cols.contains('sale_unit')) await db.execute("ALTER TABLE sales ADD COLUMN sale_unit TEXT DEFAULT 'unit'");
     }
   }
 
@@ -97,21 +102,21 @@ class DatabaseService {
       final path = p.join(dir.path, 'ritalicous_food_supply.db');
       db = await databaseFactoryFfi.openDatabase(
         path,
-        options: OpenDatabaseOptions(version: 3, onCreate: _onCreate, onUpgrade: _onUpgrade),
+        options: OpenDatabaseOptions(version: 4, onCreate: _onCreate, onUpgrade: _onUpgrade),
       );
     } else {
       final path = p.join(await getDatabasesPath(), 'ritalicous_food_supply.db');
-      db = await openDatabase(path, version: 3, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      db = await openDatabase(path, version: 4, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
   }
 
   Future<void> _seed(Database d) async {
     final sales = [
-      Sale(date:'2026-08-01',item:'mbegu za maboga mbichi',unitPrice:10000,quantity:10,productUnitCost:0),
-      Sale(date:'2026-08-01',item:'mbegu za maboga zilizo kaangwa',unitPrice:10000,quantity:15,productUnitCost:0),
-      Sale(date:'2026-08-01',item:'unga wa mbegu za maboga',unitPrice:10000,quantity:20,productUnitCost:0),
-      Sale(date:'2026-08-02',item:'crips',unitPrice:10000,quantity:25,productUnitCost:0),
-      Sale(date:'2026-08-02',item:'cookies',unitPrice:10000,quantity:1,productUnitCost:0),
+      Sale(date:'2026-08-01',item:'mbegu za maboga mbichi',unitPrice:10000,saleUnit:'pack'),
+      Sale(date:'2026-08-01',item:'mbegu za maboga zilizo kaangwa',unitPrice:10000,saleUnit:'pack'),
+      Sale(date:'2026-08-01',item:'unga wa mbegu za maboga',unitPrice:10000,saleUnit:'pack'),
+      Sale(date:'2026-08-02',item:'crips',unitPrice:10000,saleUnit:'pack'),
+      Sale(date:'2026-08-02',item:'cookies',unitPrice:10000,saleUnit:'pack'),
     ];
     for (final s in sales) { await d.insert('sales', _stamp(s.toMap())); }
     final expenses = [
@@ -123,11 +128,11 @@ class DatabaseService {
     ];
     for (final e in expenses) { await d.insert('expenses', _stamp(e.toMap())); }
     final inv = [
-      Inventory(product:'mbegu za maboga zilizo kaangwa',unitPack:'Mifuko/Pcs',unitCost:10000,openingQty:10,closingQty:0),
-      Inventory(product:'mbegu za maboga mbichi',unitPack:'Mifuko/Pcs',unitCost:10000,openingQty:15,closingQty:0),
-      Inventory(product:'unga wa mbegu za maboga',unitPack:'Mifuko/Pcs',unitCost:10000,openingQty:20,closingQty:0),
-      Inventory(product:'crips',unitPack:'Paketi/Pcs',unitCost:10000,openingQty:25,closingQty:0),
-      Inventory(product:'cookies',unitPack:'Paketi/Pcs',unitCost:10000,openingQty:30,closingQty:29),
+      Inventory(product:'mbegu za maboga zilizo kaangwa',openingQty:10,closingQty:0),
+      Inventory(product:'mbegu za maboga mbichi',openingQty:15,closingQty:0),
+      Inventory(product:'unga wa mbegu za maboga',openingQty:20,closingQty:0),
+      Inventory(product:'crips',openingQty:25,closingQty:0),
+      Inventory(product:'cookies',openingQty:30,closingQty:29),
     ];
     for (final i in inv) { await d.insert('inventory', _stamp(i.toMap())); }
   }
