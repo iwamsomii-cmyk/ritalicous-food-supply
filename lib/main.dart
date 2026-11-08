@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 import 'services/database_service.dart';
 import 'views/app_lock_gate.dart';
+import 'views/update_gate.dart';
 
 Future<void> _toggleFullScreen() async {
   final full = await windowManager.isFullScreen();
@@ -61,7 +62,7 @@ class RitalicousApp extends StatelessWidget {
           child: Focus(autofocus: true, child: child),
         );
       },
-      home: const AppLockGate(),
+      home: const UpdateGate(child: AppLockGate()),
     );
   }
 }
