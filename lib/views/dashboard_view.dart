@@ -70,6 +70,8 @@ class DashboardView extends StatelessWidget {
             _row('2. Temporary Net Profit', d.temporaryNetProfit),
           ])),
           const SizedBox(height: 18),
+          _section('Mapato na Faida kwa Kila Bidhaa', _productTable(d)),
+          const SizedBox(height: 18),
           const Text(
             'TREND & PERCENTAGE ANALYSIS',
             style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF205080)),
@@ -217,6 +219,8 @@ class DashboardView extends StatelessWidget {
             }),
             height: 400,
           ),
+          const SizedBox(height: 16),
+          _chartCard('Revenue kwa Bidhaa', _productPie(d), height: 400),
           const SizedBox(height: 18),
           _section(
             'Comment Analysis',
@@ -229,6 +233,83 @@ class DashboardView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Every revenue / profit figure with the NAME of the product it belongs to.
+  Widget _productTable(DashboardData d) {
+    final lines = d.lines.where((l) => l.hasPrice).toList()..sort((a, b) => b.revenue.compareTo(a.revenue));
+    if (lines.isEmpty) {
+      return const Padding(padding: EdgeInsets.all(14), child: Text('Hakuna bidhaa yenye bei bado. Weka bei kwenye Sales Log na stock kwenye Inventory Log.'));
+    }
+    return Column(children: [
+      ...lines.map((l) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(child: Text(l.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                Text('${(d.shareOf(l) * 100).toStringAsFixed(0)}%', style: const TextStyle(color: Colors.black54)),
+              ]),
+              const SizedBox(height: 4),
+              Text(l.hasInventory ? 'Zimeuzwa ${StockCalc.qty(l.sold)} ${l.unitLabel} × ${money(l.price)}' : 'Haipo kwenye Inventory Log: mauzo hayajahesabiwa'),
+              const SizedBox(height: 2),
+              Row(children: [
+                Expanded(child: Text('Mapato: ${money(l.revenue)}', style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF174A7E)))),
+                Text('Mgao wa faida: ${money(d.profitShare(l))}', style: const TextStyle(fontSize: 12)),
+              ]),
+            ]),
+          )),
+      const Divider(height: 1),
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Expanded(child: Text('JUMLA', style: TextStyle(fontWeight: FontWeight.bold))),
+            Text(money(d.revenue), style: const TextStyle(fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 6),
+          const Text('Mgao wa faida = Net Profit ikigawanywa kulingana na mapato ya kila bidhaa (matumizi hayarekodiwi kwa bidhaa).', style: TextStyle(fontSize: 11, color: Colors.black54)),
+        ]),
+      ),
+    ]);
+  }
+
+  /// Pie of revenue per product; the legend carries the full names with their amounts.
+  Widget _productPie(DashboardData d) {
+    final entries = d.salesByProduct.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    if (entries.isEmpty) return const Center(child: Text('Hakuna mapato bado.'));
+    final total = entries.fold<double>(0, (s, e) => s + e.value);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(
+        child: PieChart(
+          PieChartData(
+            sectionsSpace: 3,
+            centerSpaceRadius: 34,
+            sections: entries.asMap().entries.map((e) {
+              final pct = total > 0 ? (e.value.value / total * 100) : 0;
+              return PieChartSectionData(
+                value: e.value.value,
+                title: '${pct.toStringAsFixed(0)}%',
+                color: _barColors[e.key % _barColors.length],
+                radius: 100,
+                titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 14,
+        runSpacing: 6,
+        children: entries.asMap().entries.map((e) {
+          return Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 12, height: 12, decoration: BoxDecoration(color: _barColors[e.key % _barColors.length], shape: BoxShape.circle)),
+            const SizedBox(width: 5),
+            Text('${e.value.key}: ${money(e.value.value)}', style: const TextStyle(fontSize: 11)),
+          ]);
+        }).toList(),
+      ),
+    ]);
   }
 
   Widget _metric(String title, double value, {bool isLast = false}) => Container(
