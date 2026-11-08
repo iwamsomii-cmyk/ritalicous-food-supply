@@ -1,45 +1,120 @@
-name: Build Flutter APK
+name: Build Android APK and Windows Setup
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  android:
+    name: Android APK
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
 
-      - name: Install dependencies
-        run: flutter pub get
+      - run: flutter pub get
 
-      - name: Clean previous build
-        run: flutter clean
+      - name: Build release APK (signed)
+        run: flutter build apk --release
 
-      - name: Build release APK
-        run: flutter build apk --release --verbose || true
+      - name: Rename APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk Ritalicious-Food-Supply.apk
 
-      - name: Locate and copy APK
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ritalicious-Android-APK
+          path: Ritalicious-Food-Supply.apk
+
+  windows:
+    name: Windows Setup.exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Generate Windows runner (only if missing)
+        shell: pwsh
         run: |
-          mkdir -p build/app/outputs/flutter-apk
-          find android/app/build/outputs/apk/release -name "*.apk"
-          cp android/app/build/outputs/apk/release/app-release.apk build/app/outputs/flutter-apk/app-release.apk
+          if (-not (Test-Path windows/CMakeLists.txt)) {
+            flutter create --platforms=windows --project-name ritalicous_food_supply .
+          }
+          Copy-Item installer/app_icon.ico windows/runner/resources/app_icon.ico -Force
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      - run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Bundle SQLite + Visual C++ runtime (so the installer is self-contained)
+        shell: pwsh
+        run: |
+          $rel = "build/windows/x64/runner/Release"
+          # --- sqlite3.dll ---
+          $ok = $false
+          try {
+            $page = (Invoke-WebRequest -UseBasicParsing https://www.sqlite.org/download.html).Content
+            $m = [regex]::Match($page, '(\d{4}/sqlite-dll-win-x64-\d+\.zip)')
+            if ($m.Success) {
+              Invoke-WebRequest -UseBasicParsing ("https://www.sqlite.org/" + $m.Value) -OutFile sqlite.zip
+              Expand-Archive sqlite.zip -DestinationPath sqlite_dll -Force
+              Copy-Item sqlite_dll/sqlite3.dll "$rel/sqlite3.dll" -Force
+              $ok = $true
+            }
+          } catch { Write-Host "sqlite.org download failed: $_" }
+          if (-not $ok) {
+            $py = python -c "import sys,os;print(os.path.join(sys.base_prefix,'DLLs','sqlite3.dll'))"
+            if (Test-Path $py) { Copy-Item $py "$rel/sqlite3.dll" -Force; $ok = $true }
+          }
+          if (-not (Test-Path "$rel/sqlite3.dll")) { throw "sqlite3.dll not found" }
+          # --- Visual C++ runtime DLLs ---
+          foreach ($d in 'msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll','msvcp140_1.dll','msvcp140_2.dll','concrt140.dll') {
+            $src = Join-Path $env:SystemRoot "System32/$d"
+            if (Test-Path $src) { Copy-Item $src "$rel/$d" -Force }
+          }
+
+      - name: Build Setup.exe with Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          $src = (Resolve-Path "build/windows/x64/runner/Release").Path
+          & $iscc "/DSourceDir=$src" installer/ritalicious.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+
+      - uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: Ritalicious-Windows-Setup
+          path: dist/Ritalicious-Food-Supply-Setup.exe
+
+  release:
+    name: Publish downloads
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Ritalicious Food Supply - Latest
+          files: |
+            out/Ritalicious-Food-Supply.apk
+            out/Ritalicious-Food-Supply-Setup.exe
