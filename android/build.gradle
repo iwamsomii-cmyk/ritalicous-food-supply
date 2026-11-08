@@ -1,1 +1,11 @@
 // Plugin versions are managed centrally in android/settings.gradle
+
+// Put build output in <project>/build so `flutter build apk` can find the APK
+// (build/app/outputs/flutter-apk/app-release.apk).
+rootProject.layout.buildDirectory.value(rootProject.layout.buildDirectory.dir("../../build").get())
+subprojects {
+    project.layout.buildDirectory.value(rootProject.layout.buildDirectory.dir(project.name).get())
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
