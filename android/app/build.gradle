@@ -26,9 +26,20 @@ android {
         versionName '1.0.0'
     }
 
+    // Fixed release key (kept in the repo) so every build is signed with the
+    // SAME key and a new APK always installs as an update over the old one.
+    signingConfigs {
+        release {
+            storeFile file('ritalicious-release.jks')
+            storePassword 'ritalicious2026'
+            keyAlias 'ritalicious'
+            keyPassword 'ritalicious2026'
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
     }
 }
