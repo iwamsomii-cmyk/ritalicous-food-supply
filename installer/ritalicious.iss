@@ -16,9 +16,8 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\Ritalicious Food Supply
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-; Installs without needing administrator rights (per-user), admin optional.
+; Per-user install: no administrator rights needed (also used by auto-update).
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=..\dist
 OutputBaseFilename=Ritalicious-Food-Supply-Setup
 SetupIconFile=app_icon.ico
@@ -45,4 +44,5 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExe}"; Parameters: "
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExe}"; Parameters: "--fullscreen"; WorkingDir: "{app}"; IconFilename: "{app}\app_icon.ico"
 
 [Run]
-Filename: "{app}\{#MyAppExe}"; Parameters: "--fullscreen"; WorkingDir: "{app}"; Description: "Fungua RITALICIOUS FOOD SUPPLY sasa"; Flags: nowait postinstall skipifsilent
+; No skipifsilent: after an automatic (silent) update the app re-opens by itself.
+Filename: "{app}\{#MyAppExe}"; Parameters: "--fullscreen"; WorkingDir: "{app}"; Description: "Fungua RITALICIOUS FOOD SUPPLY sasa"; Flags: nowait postinstall
