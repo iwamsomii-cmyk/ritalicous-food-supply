@@ -27,7 +27,7 @@ jobs:
       - run: flutter pub get
 
       - name: Build release APK (signed)
-        run: flutter build apk --release || echo "flutter could not locate the APK, searching manually"
+        run: flutter build apk --release --build-number=${{ github.run_number }} --dart-define=BUILD_NUMBER=${{ github.run_number }} || echo "flutter could not locate the APK, searching manually"
 
       - name: Locate APK
         run: |
@@ -62,7 +62,7 @@ jobs:
       - run: flutter pub get
 
       - name: Build Windows release
-        run: flutter build windows --release
+        run: flutter build windows --release --build-number=${{ github.run_number }} --dart-define=BUILD_NUMBER=${{ github.run_number }}
 
       - name: Bundle SQLite + Visual C++ runtime (so the installer is self-contained)
         shell: pwsh
@@ -109,16 +109,27 @@ jobs:
     name: Publish downloads
     needs: [android, windows]
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: out
           merge-multiple: true
+
+      # 1) installers first
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: Ritalicious Food Supply - Latest
+          make_latest: true
           files: |
             out/Ritalicious-Food-Supply.apk
             out/Ritalicious-Food-Supply-Setup.exe
+
+      # 2) version.json last: installed apps read it to know a new build exists
+      - name: Create version.json
+        run: echo '{"build": ${{ github.run_number }}, "version": "1.0.${{ github.run_number }}"}' > out/version.json
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          files: out/version.json
