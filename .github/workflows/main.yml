@@ -127,7 +127,9 @@ jobs:
 
       # 2) version.json last: installed apps read it to know a new build exists
       - name: Create version.json
-        run: echo '{"build": ${{ github.run_number }}, "version": "1.0.${{ github.run_number }}"}' > out/version.json
+        run: |
+          echo "{\"build\": ${{ github.run_number }}, \"version\": \"1.0.${{ github.run_number }}\"}" > out/version.json
+          cat out/version.json
 
       - uses: softprops/action-gh-release@v2
         with:
