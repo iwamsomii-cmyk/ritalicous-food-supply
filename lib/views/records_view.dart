@@ -132,11 +132,11 @@ class ArchivePreviewView extends StatelessWidget {
             ]),
           ),
           const SizedBox(height: 18),
-          _listSection('Sales Log (${sales.length})', sales.map((x) => ListTile(dense: true, title: Text(x.item), subtitle: Text('${x.date} • ${x.quantity} × ${money(x.unitPrice)}'), trailing: Text(money(x.revenue), style: const TextStyle(fontWeight: FontWeight.bold)))).toList()),
+          _listSection('Sales Log (${data.lines.where((l) => l.hasPrice).length})', data.lines.where((l) => l.hasPrice).map((l) => ListTile(dense: true, title: Text(l.name), subtitle: Text(l.hasInventory ? 'Zimeuzwa ${StockCalc.qty(l.sold)} ${l.unitLabel} × ${money(l.price)}' : 'Bei ${money(l.price)} kwa ${l.unitLabel}'), trailing: Text(money(l.revenue), style: const TextStyle(fontWeight: FontWeight.bold)))).toList()),
           const SizedBox(height: 14),
           _listSection('Expenses Log (${expenses.length})', expenses.map((x) => ListTile(dense: true, title: Text(x.category), subtitle: Text('${x.date} • ${x.description} • ${x.paymentMethod}'), trailing: Text(money(x.amount), style: const TextStyle(fontWeight: FontWeight.bold)))).toList()),
           const SizedBox(height: 14),
-          _listSection('Inventory Log (${inventory.length})', inventory.map((x) => ListTile(dense: true, title: Text(x.product), subtitle: Text('${x.unitPack} • Opening: ${x.openingQty} • Closing: ${x.closingQty}'), trailing: Text(money(x.closingValue), style: const TextStyle(fontWeight: FontWeight.bold)))).toList()),
+          _listSection('Inventory Log (${data.lines.where((l) => l.hasInventory).length})', data.lines.where((l) => l.hasInventory).map((l) => ListTile(dense: true, title: Text(l.name), subtitle: Text('Opening: ${StockCalc.qty(l.opening)} • Closing: ${StockCalc.qty(l.closing)} • Zimeuzwa: ${StockCalc.qty(l.sold)}'), trailing: Text(money(l.revenue), style: const TextStyle(fontWeight: FontWeight.bold)))).toList()),
           const SizedBox(height: 14),
           _listSection('Comment Analysis', [
             Padding(padding: const EdgeInsets.all(12), child: Text(AnalysisService.advice(data), style: const TextStyle(fontSize: 14, height: 1.4))),
