@@ -79,10 +79,18 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          flutter build windows --release --build-number=${{ github.run_number }} `
-            --dart-define=BUILD_NUMBER=${{ github.run_number }} `
-            --dart-define=SUPABASE_URL="$env:SUPABASE_URL" `
-            --dart-define=SUPABASE_PUBLISHABLE_KEY="$env:SUPABASE_PUBLISHABLE_KEY"
+          $ok = $false
+          for ($i = 1; $i -le 3; $i++) {
+            Write-Host "Build attempt $i of 3"
+            flutter build windows --release --build-number=${{ github.run_number }} `
+              --dart-define=BUILD_NUMBER=${{ github.run_number }} `
+              --dart-define=SUPABASE_URL="$env:SUPABASE_URL" `
+              --dart-define=SUPABASE_PUBLISHABLE_KEY="$env:SUPABASE_PUBLISHABLE_KEY"
+            if ($LASTEXITCODE -eq 0) { $ok = $true; break }
+            Write-Host "Build failed (possibly a network error). Retrying in 20s..."
+            Start-Sleep -Seconds 20
+          }
+          if (-not $ok) { throw "Windows build failed after 3 attempts" }
 
       - name: Bundle SQLite + Visual C++ runtime (so the installer is self-contained)
         shell: pwsh
