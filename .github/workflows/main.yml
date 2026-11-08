@@ -27,10 +27,14 @@ jobs:
       - run: flutter pub get
 
       - name: Build release APK (signed)
-        run: flutter build apk --release
+        run: flutter build apk --release || echo "flutter could not locate the APK, searching manually"
 
-      - name: Rename APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk Ritalicious-Food-Supply.apk
+      - name: Locate APK
+        run: |
+          APK=$(find . -name "app-release.apk" -not -path "*/intermediates/*" | head -n 1)
+          echo "Found: $APK"
+          if [ -z "$APK" ]; then echo "APK not produced - build failed"; exit 1; fi
+          cp "$APK" Ritalicious-Food-Supply.apk
 
       - uses: actions/upload-artifact@v4
         with:
